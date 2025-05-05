@@ -1,41 +1,61 @@
-import { useState, useEffect } from 'react';
-import useLocalStorage from '../hooks/useLocalStorage';
-import { v4 as uuidv4 } from 'uuid';
+import { useState, useEffect, useRef } from 'react';
+import { addDoc, collection, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 
 function NoteForm({ editNote, setEditNote }) {
-  const [notes, setNotes] = useLocalStorage('notes', []);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const titleRef = useRef(null);
 
   useEffect(() => {
     if (editNote) {
-      setTitle(editNote.title);
-      setContent(editNote.content);
+      setTitle(editNote.title || '');
+      setContent(editNote.content || '');
+    } else {
+      setTitle('');
+      setContent('');
     }
+    titleRef.current?.focus();
   }, [editNote]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!title.trim()) return;
 
-    if (editNote) {
-      setNotes(notes.map(note => 
-        note.id === editNote.id ? { ...note, title, content, updatedAt: new Date().toISOString() } : note
-      ));
-      setEditNote(null);
-    } else {
-      setNotes([...notes, {
-        id: uuidv4(),
-        title,
-        content,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }]);
+    if (!title.trim()) {
+      alert('Title is required!');
+      return;
     }
 
-    setTitle('');
-    setContent('');
+    const timestamp = serverTimestamp();
+
+    try {
+      if (editNote && editNote.id) {
+        // Update existing note
+        const noteRef = doc(db, "notes", editNote.id);
+        await updateDoc(noteRef, {
+          title,
+          content,
+          updatedAt: timestamp,
+        });
+        alert('Note updated successfully!');
+        setEditNote(null);
+      } else {
+        // Add new note
+        await addDoc(collection(db, "notes"), {
+          title,
+          content,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        });
+        alert('Note added successfully!');
+      }
+
+      setTitle('');
+      setContent('');
+    } catch (error) {
+      console.error("Error writing document: ", error);
+      alert('Something went wrong. Please try again.');
+    }
   };
 
   return (
@@ -54,6 +74,7 @@ function NoteForm({ editNote, setEditNote }) {
             <input
               type="text"
               id="title"
+              ref={titleRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -83,7 +104,7 @@ function NoteForm({ editNote, setEditNote }) {
             >
               {editNote ? 'Update Note' : 'Save Note'}
             </button>
-            
+
             {editNote && (
               <button
                 type="button"

@@ -2,7 +2,7 @@ export default function SortControls({ sortBy, setSortBy }) {
   return (
     <div className="relative">
       <select
-        value={sortBy}
+        value={sortBy || "newest"} // Fallback value for undefined or null sortBy
         onChange={(e) => setSortBy(e.target.value)}
         className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-2 text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       >

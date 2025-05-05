@@ -1,12 +1,16 @@
-export default function NoteItem({ note, onEdit, onDelete }) {
+export default function NoteItem({ note, onEdit, onDelete, formatDate }) {
+  if (!note) return null; // ✅ Prevents rendering errors
+
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
       <div className="p-4">
         <div className="flex justify-between items-start">
-          <h3 className="text-lg font-medium text-gray-800">{note.title}</h3>
+          <h3 className="text-lg font-medium text-gray-800">
+            {note.title || 'Untitled Note'} {/* ✅ Fallback title */}
+          </h3>
           <div className="flex space-x-2">
             <button
-              onClick={() => onEdit(note)}
+              onClick={() => onEdit(note)} // ✅ Cleaned up
               className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition duration-200"
               aria-label="Edit note"
             >
@@ -25,9 +29,13 @@ export default function NoteItem({ note, onEdit, onDelete }) {
             </button>
           </div>
         </div>
-        <p className="mt-2 text-gray-600 whitespace-pre-line">{note.content}</p>
+
+        <p className="mt-2 text-gray-600 whitespace-pre-line">
+          {note.content || 'No content available'} {/* ✅ Fallback content */}
+        </p>
+
         <p className="mt-3 text-xs text-gray-500">
-          Last updated: {new Date(note.updatedAt).toLocaleString()}
+          Last updated: {formatDate(note.updatedAt || note.createdAt)} {/* ✅ Safer timestamp */}
         </p>
       </div>
     </div>

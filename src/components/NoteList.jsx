@@ -1,26 +1,55 @@
-import useLocalStorage from '../hooks/useLocalStorage';
+import { useState, useEffect } from 'react';
+import { collection, query, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase'; // Ensure this is correctly imported
 import NoteItem from './NoteItem';
 
 function NoteList({ searchTerm, sortBy, setEditNote }) {
-  const [notes, setNotes] = useLocalStorage('notes', []);
+  const [notes, setNotes] = useState([]);
+
+  useEffect(() => {
+    // Query Firestore for all notes
+    const q = query(collection(db, "notes"));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const notesData = [];
+      querySnapshot.forEach((doc) => {
+        notesData.push({ id: doc.id, ...doc.data() });
+      });
+      setNotes(notesData); // Update state with notes from Firestore
+    });
+
+    return () => unsubscribe(); // Clean up the listener on unmount
+  }, []);
 
   const filteredNotes = notes.filter(note => 
     note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    note.content.toLowerCase().includes(searchTerm.toLowerCase())
+    (note.content && note.content.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const sortedNotes = [...filteredNotes].sort((a, b) => {
+    const dateA = a.updatedAt?.seconds || a.createdAt?.seconds || 0;
+    const dateB = b.updatedAt?.seconds || b.createdAt?.seconds || 0;
+
     if (sortBy === 'newest') {
-      return new Date(b.updatedAt) - new Date(a.updatedAt);
+      return dateB - dateA;
     } else if (sortBy === 'oldest') {
-      return new Date(a.updatedAt) - new Date(b.updatedAt);
+      return dateA - dateB;
     } else {
       return a.title.localeCompare(b.title);
     }
   });
 
-  const handleDelete = (id) => {
-    setNotes(notes.filter(note => note.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      await deleteDoc(doc(db, "notes", id)); // Delete note from Firestore
+    } catch (error) {
+      console.error("Error removing document: ", error);
+    }
+  };
+
+  const formatFirebaseTimestamp = (timestamp) => {
+    if (!timestamp) return 'No date';
+    return new Date(timestamp.seconds * 1000).toLocaleString();
   };
 
   return (
@@ -35,7 +64,8 @@ function NoteList({ searchTerm, sortBy, setEditNote }) {
             key={note.id}
             note={note} 
             onEdit={setEditNote} 
-            onDelete={handleDelete} 
+            onDelete={handleDelete}
+            formatDate={formatFirebaseTimestamp}
           />
         ))
       )}
